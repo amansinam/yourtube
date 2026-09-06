@@ -5,7 +5,13 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut, User as FirebaseUser } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+  User as FirebaseUser,
+} from "firebase/auth";
 import { auth, googleProvider } from "./firebase";
 import api from "./api";
 import { AppUser } from "./types";
@@ -86,7 +92,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // `onAuthStateChanged` above performs the MongoDB sync as soon as
     // Firebase completes the popup sign-in. Calling it here too races two
     // create-user requests against MongoDB's unique email index.
-    await signInWithPopup(auth, googleProvider);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err) {
+      // Browsers can block an OAuth popup. Redirect sign-in is handled by the
+      // same Firebase auth-state listener after the browser returns here.
+      if ((err as { code?: string })?.code === "auth/popup-blocked") {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+      throw err;
+    }
   }
 
   async function logout() {
