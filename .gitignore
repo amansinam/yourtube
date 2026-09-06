@@ -1,0 +1,23 @@
+# Dependencies and framework build output
+**/node_modules/
+yourtube/.next/
+yourtube/out/
+
+# Local secrets — never upload these to GitHub
+server/.env
+yourtube/.env.local
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local uploads and logs
+server/uploads/*
+!server/uploads/.gitkeep
+*.log
+*.tsbuildinfo
+
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
