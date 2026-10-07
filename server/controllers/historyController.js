@@ -19,12 +19,23 @@ export async function getHistory(req, res) {
     }
 
     const history = await History.find({ viewer: userId })
-      .sort({ createdAt: -1 })
+      .sort({ likedon: -1, updatedAt: -1 })
       .populate("videoid");
+
+    // Older versions created a row for every view. Keep only the most recent
+    // row for each video in the response so history stays clean immediately,
+    // even before old duplicate documents are removed.
+    const seenVideos = new Set();
+    const uniqueHistory = history.filter((entry) => {
+      const id = entry.videoid?._id ? String(entry.videoid._id) : String(entry.videoid);
+      if (seenVideos.has(id)) return false;
+      seenVideos.add(id);
+      return true;
+    });
 
     return res.status(200).json({
       success: true,
-      history: history.map((h) => ({
+      history: uniqueHistory.map((h) => ({
         ...h.toObject(),
         videoid: serializeVideo(h.videoid),
       })),
@@ -48,7 +59,16 @@ export async function addHistory(req, res) {
       return res.status(400).json({ success: false, message: "Valid userId is required" });
     }
 
-    const entry = await History.create({ viewer: userId, videoid: videoId });
+    // One row per viewer/video: repeat views refresh its position in history.
+    // This keeps the page like YouTube's history instead of showing duplicates.
+    let entry = await History.findOneAndUpdate(
+      { viewer: userId, videoid: videoId },
+      { $set: { likedon: new Date() } },
+      { new: true }
+    );
+    if (!entry) {
+      entry = await History.create({ viewer: userId, videoid: videoId });
+    }
 
     await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } });
 

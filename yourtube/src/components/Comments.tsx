@@ -15,6 +15,8 @@ function CommentItem({ comment, depth, onReload }: { comment: Comment; depth?: n
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(comment.commentbody);
   const [busy, setBusy] = useState(false);
+  const [showReplies, setShowReplies] = useState(false);
+  const [showImage, setShowImage] = useState(Boolean(comment.author?.image));
   const isOwner = Boolean(user && user._id === comment.userid);
   const name = comment.author?.name || comment.usercommented || "Unknown user";
 
@@ -46,7 +48,7 @@ function CommentItem({ comment, depth, onReload }: { comment: Comment; depth?: n
 
   return <div className={depth ? "ml-5 border-l border-gray-100 pl-4 sm:ml-10" : ""}>
     <div className="flex gap-3 py-3">
-      {comment.author?.image ? <img src={comment.author.image} alt="" className="h-9 w-9 rounded-full object-cover" /> : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-700">{name[0]?.toUpperCase() || "?"}</div>}
+      {showImage ? <img src={comment.author?.image || ""} alt="" onError={() => setShowImage(false)} className="h-9 w-9 rounded-full object-cover" /> : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-500 text-sm font-semibold text-white">{name[0]?.toUpperCase() || "?"}</div>}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2"><span className="text-sm font-semibold text-gray-900">{name}</span><span className="text-xs text-gray-500">{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}</span>{comment.editedAt && <span className="text-xs text-gray-500">(Edited)</span>}</div>
         {comment.isDeleted ? <p className="mt-1 text-sm italic text-gray-500">[Comment deleted]</p> : editing ? <div className="mt-2 flex gap-2"><input value={editText} onChange={(event) => setEditText(event.target.value)} maxLength={1000} className="min-w-0 flex-1 border-b border-gray-300 text-sm outline-none focus:border-blue-600" /><button onClick={saveEdit} disabled={busy} className="text-xs font-semibold text-blue-600">Save</button><button onClick={() => setEditing(false)} className="text-xs text-gray-500">Cancel</button></div> : <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-800">{comment.commentbody}</p>}
@@ -54,7 +56,7 @@ function CommentItem({ comment, depth, onReload }: { comment: Comment; depth?: n
         {replying && <div className="mt-3 flex gap-2"><input autoFocus value={replyText} onChange={(event) => setReplyText(event.target.value)} maxLength={1000} placeholder={`Reply to ${name}`} className="min-w-0 flex-1 rounded-full border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-600" /><button onClick={submitReply} disabled={busy || !replyText.trim()} className="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Reply</button></div>}
       </div>
     </div>
-    {comment.replies?.map((reply) => <CommentItem key={reply._id} comment={reply} depth={(depth || 0) + 1} onReload={onReload} />)}
+    {!!comment.replies?.length && <div className="pb-2"><button onClick={() => setShowReplies(!showReplies)} className="ml-12 text-sm font-semibold text-blue-700 hover:text-blue-800">{showReplies ? "Hide replies" : `View ${comment.replies.length} ${comment.replies.length === 1 ? "reply" : "replies"}`}</button>{showReplies && comment.replies.map((reply) => <CommentItem key={reply._id} comment={reply} depth={(depth || 0) + 1} onReload={onReload} />)}</div>}
   </div>;
 }
 
