@@ -29,11 +29,19 @@ export interface Video {
 
 export interface Comment {
   _id: string;
-  userid?: string;
+  userid: string;
   videoid: string;
   commentbody: string;
   usercommented: string;
   commentedon: string;
   createdAt: string;
   updatedAt: string;
+  parentComment?: string | null;
+  replies?: Comment[];
+  likeCount?: number;
+  dislikeCount?: number;
+  viewerReaction?: "like" | "dislike" | null;
+  editedAt?: string | null;
+  isDeleted?: boolean;
+  author?: { _id: string; name: string; image?: string | null } | null;
 }
