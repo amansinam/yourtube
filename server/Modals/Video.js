@@ -11,6 +11,7 @@ const videoSchema = new mongoose.Schema(
     cloudinaryPublicId: { type: String, default: "" },
     filesize: { type: Number, required: true },
     videochanel: { type: String, required: true },
+    category: { type: String, default: "", trim: true, maxlength: 50 },
     Like: { type: Number, default: 0 },
     views: { type: Number, default: 0 },
     uploader: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

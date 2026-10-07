@@ -19,6 +19,7 @@ export interface Video {
   cloudinaryPublicId?: string;
   filesize: number;
   videochanel: string;
+  category?: string;
   Like: number;
   views: number;
   uploader?: string;

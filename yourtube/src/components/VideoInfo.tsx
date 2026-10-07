@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ThumbsUp, Clock, Check } from "lucide-react";
+import { ThumbsUp, Clock, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Video } from "@/lib/types";
 import { useAuth } from "@/lib/AuthContext";
 import api from "@/lib/api";
+import { useRouter } from "next/router";
 
 function formatViews(views: number) {
   if (views >= 1_000_000) return `${(views / 1_000_000).toFixed(1)}M views`;
@@ -14,6 +15,7 @@ function formatViews(views: number) {
 
 export default function VideoInfo({ video }: { video: Video }) {
   const { user } = useAuth();
+  const router = useRouter();
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(video.Like);
@@ -92,6 +94,23 @@ export default function VideoInfo({ video }: { video: Video }) {
     }
   }
 
+  async function handleDelete() {
+    if (!user || !window.confirm("Delete this video permanently? Its comments, likes, history, and Watch Later entries will also be removed.")) return;
+    setBusy(true);
+    try {
+      await api.delete(`/video/${video._id}`, { data: { userId: user._id } });
+      toast.success("Video deleted");
+      router.push("/");
+    } catch (err) {
+      console.error(err);
+      toast.error("Couldn't delete this video");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isOwner = Boolean(user && video.uploader && user._id === video.uploader);
+
   return (
     <div className="mt-4">
       <h1 className="text-lg font-semibold text-gray-900">{video.videotitle}</h1>
@@ -131,6 +150,16 @@ export default function VideoInfo({ video }: { video: Video }) {
             {saved ? <Check size={16} /> : <Clock size={16} />}
             {saved ? "Saved" : "Save"}
           </button>
+          {isOwner && (
+            <button
+              onClick={handleDelete}
+              disabled={busy}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50"
+              title="Delete this video"
+            >
+              <Trash2 size={16} /> Delete
+            </button>
+          )}
         </div>
       </div>
     </div>

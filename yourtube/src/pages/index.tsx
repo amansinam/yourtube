@@ -9,6 +9,7 @@ export default function Home() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState("All");
 
   useEffect(() => {
     let cancelled = false;
@@ -17,7 +18,9 @@ export default function Home() {
       setLoading(true);
       setError(null);
       try {
-        const { data } = await api.get("/video/getall");
+        const { data } = await api.get("/video/getall", {
+          params: category === "All" ? undefined : { category },
+        });
         if (!cancelled) setVideos(data.videos || []);
       } catch (err) {
         console.error("Failed to load videos:", err);
@@ -31,16 +34,16 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [category]);
 
   return (
     <Layout title="YourTube">
-      <CategoryTabs />
+      <CategoryTabs onSelect={setCategory} />
       <VideoGrid
         videos={videos}
         loading={loading}
         error={error}
-        emptyMessage="No videos have been uploaded yet. Be the first!"
+        emptyMessage={category === "All" ? "No videos have been uploaded yet. Be the first!" : `No ${category} videos yet.`}
       />
     </Layout>
   );

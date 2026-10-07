@@ -31,6 +31,7 @@ export default function VideoCard({ video }: { video: Video }) {
             {video.videotitle}
           </h3>
           <p className="text-xs text-gray-600 mt-1 line-clamp-1">{video.videochanel}</p>
+          {video.category && <span className="inline-block mt-1 text-[11px] text-gray-600 bg-gray-100 rounded px-1.5 py-0.5">{video.category}</span>}
           <p className="text-xs text-gray-600">
             {formatViews(video.views)}
             {timeAgo && ` • ${timeAgo}`}

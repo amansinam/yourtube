@@ -1,18 +1,7 @@
 import { useState } from "react";
+import { VIDEO_CATEGORIES } from "@/lib/categories";
 
-const CATEGORIES = [
-  "All",
-  "Music",
-  "Gaming",
-  "News",
-  "Live",
-  "Coding",
-  "Movies",
-  "Comedy",
-  "Sports",
-  "Learning",
-  "Podcasts",
-];
+const CATEGORIES = ["All", ...VIDEO_CATEGORIES];
 
 export default function CategoryTabs({
   onSelect,

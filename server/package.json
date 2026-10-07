@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "cleanup:legacy-videos": "node scripts/cleanupLegacyVideos.js"
+    "cleanup:legacy-videos": "node scripts/cleanupLegacyVideos.js",
+    "reset:database": "node scripts/resetDatabase.js"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
