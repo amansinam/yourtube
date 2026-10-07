@@ -34,6 +34,10 @@ source files.
    returns JSON (never leaves a request hanging), and errors return a
    consistent `{ success, message }` shape. A catch-all 404 handler always
    returns JSON instead of an HTML 404 page.
+7. **Cloudinary video storage** — new uploads are staged temporarily on the
+   backend, uploaded to Cloudinary, and stored in MongoDB as HTTPS playback
+   URLs with Cloudinary-generated video-frame thumbnails. Existing local
+   uploads remain playable when their files still exist.
 
 ## What is intentionally left incomplete (and why)
 
@@ -44,11 +48,9 @@ source files.
   /subscription/:channelId` and `GET /subscription/:userId` routes, a
   "Subscribe" button on the channel page, and swap the placeholder for a
   `VideoGrid` fed by subscribed channels' videos.
-- **Persistent video storage** — uploaded files still write to
-  `server/uploads/` on local disk. This is fine for local development but
-  **will lose files on Render after a restart or redeploy**. Before relying
-  on this in production, swap `server/filehelper/upload.js`'s multer
-  `diskStorage` for an S3/Cloudinary/Azure Blob storage engine.
+- **Cloudinary credentials are required for new uploads** — add them to the
+   backend environment before uploading. Existing local-file records remain
+   in MongoDB; use the cleanup command below only after reviewing its dry-run.
 - **Auth/authorization checks on write routes** — routes like
   `/video/upload`, `/comment/postcomment`, `/like/:videoId`, etc. currently
   trust whatever `userId`/`uploader` the client sends. There's no server-side
@@ -64,11 +66,19 @@ source files.
 ```
 DB_URL=<your MongoDB connection string>
 FRONTEND_URL=<your deployed frontend origin, e.g. https://your-app.vercel.app>
+CLOUDINARY_CLOUD_NAME=<your Cloudinary cloud name>
+CLOUDINARY_API_KEY=<your Cloudinary API key>
+CLOUDINARY_API_SECRET=<your Cloudinary API secret>
 ```
-**Do not set `PORT`** — Render provides it automatically.
+Set the Cloudinary values in the backend host environment as well. The API
+secret must remain server-side; never put it in `yourtube/.env.local` or a
+`NEXT_PUBLIC_` variable. **Do not set `PORT`** — Render provides it.
 
-⚠️ If a MongoDB password was ever pasted into a chat, ticket, or committed
-file, rotate it in MongoDB Atlas now and update `DB_URL` everywhere it's used.
+⚠️ If a MongoDB password or Cloudinary API secret was shared in a chat,
+ticket, screenshot, or committed file, revoke/rotate it before using it and
+update the backend environment. Do not paste secrets into chat or source files.
+For Atlas, use a URI with the intended database name, for example
+`mongodb+srv://<user>:<url-encoded-password>@<cluster>/<database>?retryWrites=true&w=majority`.
 
 ### `yourtube/.env.local` (copy from `yourtube/.env.example`)
 ```
@@ -103,7 +113,8 @@ npm run dev             # http://localhost:3000
 - Root Directory: `server`
 - Build Command: `npm ci`
 - Start Command: `npm start`
-- Env vars: `DB_URL`, `FRONTEND_URL` (do not set `PORT`)
+- Env vars: `DB_URL`, `FRONTEND_URL`, `CLOUDINARY_CLOUD_NAME`,
+  `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (do not set `PORT`)
 
 **Vercel (frontend)**
 - Root Directory: `yourtube`
@@ -118,18 +129,61 @@ After both are deployed:
 2. Add your Vercel domain to Firebase Console → Authentication →
    Settings → Authorized domains, or Google sign-in will fail there.
 
+### Remove stale local-only video records
+
+The cleanup command targets video documents without a `videoUrl` (the old
+local-disk records) and their comments, likes, history, and Watch Later
+records. It does not delete Cloudinary-backed videos. It is a dry run unless
+you pass `--confirm`.
+
+```bash
+cd server
+npm run cleanup:legacy-videos
+# Review the printed IDs and titles before confirming.
+npm run cleanup:legacy-videos -- --confirm
+```
+
+Run it only after setting `DB_URL` in `server/.env`. The confirmed command
+permanently deletes the listed MongoDB records and related interactions; it
+does not delete Cloudinary assets. Back up the database first if there is any
+chance those old records are needed. No cleanup is run automatically during
+startup or deployment.
+
+### Verify a Cloudinary upload
+
+1. Rotate any credentials previously shared, then set fresh values in local
+   `server/.env` and the backend host settings. Include the intended MongoDB
+   database name in `DB_URL` (usually `/yourtube`) and URL-encode special
+   characters in the database username/password.
+2. Start the backend with `cd server && npm ci && npm run dev`. Its health URL
+   should return JSON at `http://localhost:5000/`.
+3. In another terminal, start the frontend with `cd yourtube && npm ci &&
+   npm run dev`. Confirm `NEXT_PUBLIC_BACKEND_URL` points to the backend URL.
+4. Sign in, upload a small MP4, and wait for the upload request to finish.
+   The API response and MongoDB video document should include `videoUrl`,
+   `thumbnailUrl`, and `cloudinaryPublicId`.
+5. Confirm the `videoUrl` is HTTPS and opens, the video plays on the watch
+   page, and the video-frame poster is visible on the home/explore card.
+6. Open the deployed site on a different device/network and repeat playback.
+   For deployment, set the same Cloudinary values only in the backend host,
+   set the production frontend origin in `FRONTEND_URL`, and set the public
+   backend URL in the frontend's `NEXT_PUBLIC_BACKEND_URL`.
+
+If upload returns a configuration error, recheck the three Cloudinary backend
+variables and restart/redeploy the backend. If MongoDB connects but the video
+catalogue is unexpectedly empty, check that `DB_URL` points to the same
+database used by the existing records. Cloudinary's free plan has usage
+quotas, so monitor storage, transformations, and delivery in its console.
+
 ## Still on you
 
-- [ ] Rotate the exposed MongoDB password
-- [ ] Run `npm install` in both `server/` and `yourtube/` (this build
-      environment has no network access, so dependencies were never
-      installed or tested — review `package.json` versions before trusting
-      them blindly)
+- [ ] Rotate any exposed MongoDB password and Cloudinary API secret
+- [ ] Set Cloudinary credentials in the backend environment (local
+   `server/.env` and the deployed backend host)
+- [ ] Review and run the stale-video cleanup only if desired
 - [ ] Create a Firebase project, enable Google sign-in, fill in the
       frontend env vars
 - [ ] Set Render/Vercel env vars and confirm CORS works end-to-end
-- [ ] Decide on and wire up persistent storage (S3/Cloudinary/etc.) before
-      relying on uploads in production
 - [ ] Add server-side auth verification on write routes if this will have
       real users
 - [ ] Build out Subscriptions if you want that feature

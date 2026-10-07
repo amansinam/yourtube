@@ -2,7 +2,7 @@ import { getVideoUrl } from "@/lib/videoUrl";
 import { Video } from "@/lib/types";
 
 export default function VideoPlayer({ video }: { video: Video }) {
-  const src = getVideoUrl(video.filename || video.filepath);
+  const src = video.videoUrl || getVideoUrl(video.filename || video.filepath);
 
   return (
     <div className="w-full bg-black rounded-xl overflow-hidden aspect-video">

@@ -15,6 +15,7 @@ export default function VideoThumbnail({
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
+  const source = video.videoUrl || getVideoUrl(video.filename || video.filepath);
 
   if (failed) {
     return (
@@ -26,9 +27,20 @@ export default function VideoThumbnail({
     );
   }
 
+  if (video.thumbnailUrl) {
+    return (
+      <img
+        src={video.thumbnailUrl}
+        alt={`${video.videotitle} thumbnail`}
+        className={`bg-gray-900 object-cover ${className}`}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
   return (
     <video
-      src={getVideoUrl(video.filename || video.filepath)}
+      src={source}
       muted
       playsInline
       preload="metadata"

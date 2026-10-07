@@ -6,10 +6,12 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "cleanup:legacy-videos": "node scripts/cleanupLegacyVideos.js"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^5.0.1",

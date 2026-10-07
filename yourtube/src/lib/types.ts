@@ -14,6 +14,9 @@ export interface Video {
   filename: string; // normalized filename, build full URL with getVideoUrl()
   filetype: string;
   filepath: string;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  cloudinaryPublicId?: string;
   filesize: number;
   videochanel: string;
   Like: number;

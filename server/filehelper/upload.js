@@ -6,8 +6,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Set UPLOAD_DIR on a host with persistent storage. Locally we keep uploads
-// in server/uploads so no additional setup is required.
+// Multer stages uploads locally before the controller sends them to Cloudinary.
 const uploadDir = process.env.UPLOAD_DIR
   ? path.resolve(process.env.UPLOAD_DIR)
   : path.join(__dirname, "..", "uploads");
@@ -15,10 +14,6 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// NOTE (production): this writes to local disk. On Render this storage is
-// ephemeral and files can disappear after a restart/redeploy. Swap this
-// storage engine for Cloudinary / AWS S3 / Azure Blob Storage before relying
-// on this in production. See README "Known limitations".
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadDir);
