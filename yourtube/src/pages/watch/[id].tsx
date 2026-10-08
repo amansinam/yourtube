@@ -20,6 +20,9 @@ export default function WatchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const viewRecordedFor = useRef<string | null>(null);
+  const nextVideo = video
+    ? allVideos.find((item) => item._id !== video._id && Boolean(item.videoUrl || item.filename || item.filepath)) || null
+    : null;
 
   useEffect(() => {
     if (!videoId) return;
@@ -90,7 +93,7 @@ export default function WatchPage() {
             </div>
           ) : (
             <>
-              <VideoPlayer video={video} />
+              <VideoPlayer video={video} nextVideo={nextVideo} />
               <VideoInfo video={video} />
               <Comments videoId={video._id} />
             </>
