@@ -1,7 +1,10 @@
-# Dependencies and framework build output
+j# Dependencies and framework build output
 **/node_modules/
 yourtube/.next/
 yourtube/out/
+yourtube/.vercel/
+**/.turbo/
+coverage/
 
 # Local secrets — never upload these to GitHub
 server/.env
@@ -9,12 +12,19 @@ yourtube/.env.local
 **/.env
 **/.env.*
 !**/.env.example
+**/.env*.local
 
 # Local uploads and logs
 server/uploads/*
 !server/uploads/.gitkeep
 *.log
 *.tsbuildinfo
+*.pem
+*.key
+*.p12
+*.pfx
+*.orig
+*.bak
 
 # Operating-system and editor files
 .DS_Store

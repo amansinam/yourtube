@@ -1,25 +1,41 @@
 @import "tailwindcss";
 
-:root {
-  --header-height: 56px;
-  --sidebar-width: 240px;
-}
+:root { --header-height: 56px; --sidebar-width: 240px; --page: #fff; --surface: #fff; --surface-muted: #f7f8fa; --text: #171717; --muted: #60646c; --border: #e5e7eb; --accent: #2563eb; color-scheme: light; }
+html.dark { --page: #0f1115; --surface: #171a20; --surface-muted: #20242c; --text: #f4f4f5; --muted: #a7adb8; --border: #303641; --accent: #60a5fa; color-scheme: dark; }
+html, body { min-height: 100%; padding: 0; margin: 0; font-family: Roboto, Arial, "Helvetica Neue", sans-serif; background: var(--page); color: var(--text); }
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; }
+button:not(:disabled), [role="button"] { cursor: pointer; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: inherit; text-decoration: none; }
 
-html,
-body {
-  padding: 0;
-  margin: 0;
-  font-family: Roboto, Arial, "Helvetica Neue", sans-serif;
-}
+.ui-button { display: inline-flex; min-height: 2.5rem; align-items: center; justify-content: center; gap: .5rem; border-radius: .625rem; padding: .5rem .875rem; font-size: .875rem; font-weight: 600; transition: background-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.ui-button:active, .ui-icon-button:active { transform: translateY(1px); }
+.ui-button:disabled, .ui-icon-button:disabled { cursor: not-allowed; opacity: .5; }
+.ui-button-primary { background: var(--accent); color: #fff; }
+.ui-button-primary:hover { background: #1d4ed8; }
+.ui-button-secondary { border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.ui-button-secondary:hover, .ui-icon-button:hover { background: var(--surface-muted); }
+.ui-icon-button { display: inline-grid; width: 2.5rem; height: 2.5rem; flex: 0 0 auto; place-items: center; border-radius: .625rem; color: var(--text); transition: background-color .16s ease, transform .16s ease; }
+.ui-input { height: 2.5rem; width: 100%; border: 1px solid var(--border); border-radius: .625rem; background: var(--surface); color: var(--text); padding: 0 .75rem; outline: none; transition: border-color .16s ease, box-shadow .16s ease; }
+.ui-input::placeholder { color: var(--muted); }
+.ui-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 
-* {
-  box-sizing: border-box;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
+html.dark .bg-white, html.dark .bg-gray-50 { background-color: var(--surface) !important; }
+html.dark .bg-gray-100 { background-color: var(--surface-muted) !important; }
+html.dark .border-gray-100, html.dark .border-gray-200, html.dark .border-gray-300 { border-color: var(--border) !important; }
+html.dark .text-gray-900, html.dark .text-gray-800, html.dark .text-gray-700 { color: var(--text) !important; }
+html.dark .text-gray-600, html.dark .text-gray-500, html.dark .text-gray-400 { color: var(--muted) !important; }
+html.dark .hover\:bg-gray-100:hover, html.dark .hover\:bg-gray-200:hover { background-color: #292f39 !important; }
+html.dark input:not([type="range"]), html.dark textarea, html.dark select { background-color: var(--surface); color: var(--text); }
+html.dark option { background: var(--surface); color: var(--text); }
+.sidebar-link { color: var(--text); transition: background-color .16s ease, color .16s ease; }
+.sidebar-link:hover { background: var(--surface-muted); }
+.sidebar-link-active { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--text); }
+html.dark .sidebar-link:hover { background: #292f39; }
+html.dark .sidebar-link-active { background: #25334a; color: #f8fbff; }
+/* The old theater control is replaced by the explicit pin control on the player. */
+button[aria-label="Theater mode"] { display: none !important; }
 
 .line-clamp-2 {
   display: -webkit-box;
@@ -34,3 +50,7 @@ a {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+@media (max-width: 639px) { .ui-icon-button { width: 2.375rem; height: 2.375rem; } }
