@@ -29,7 +29,7 @@ For an unrestricted public product, add rate limiting, production monitoring, a 
 - A Firebase project with Google sign-in enabled
 - Firebase service-account credentials for the backend
 - Cloudinary account/API credentials for uploads
-- SMTP provider credentials for email OTP delivery
+- Brevo API key and verified sender email for email OTP delivery
 
 ## Environment variables
 
@@ -46,6 +46,11 @@ FRONTEND_URL=http://localhost:3000
 
 FIREBASE_SERVICE_ACCOUNT_JSON={...single-line Firebase service-account JSON...}
 
+# Recommended for Render Free: Brevo HTTP API
+BREVO_API_KEY=your-brevo-api-key
+BREVO_SENDER_EMAIL=your-verified-sender@example.com
+
+# Optional SMTP fallback for local development or paid hosts
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_SECURE=false
@@ -166,7 +171,7 @@ The backend health check should return JSON:
 
 - Uploads accept MP4 files up to 50 MB. Files are staged temporarily by the backend, uploaded to Cloudinary, then deleted locally.
 - Cloudinary credentials are required for new uploads.
-- OTP login requires both Firebase Admin credentials and SMTP settings on the backend.
+- OTP login requires Firebase Admin credentials plus either Brevo (`BREVO_API_KEY` and `BREVO_SENDER_EMAIL`) or SMTP. Brevo is recommended on Render Free because it uses HTTPS rather than blocked SMTP ports.
 - The Subscriptions screen is currently a placeholder because the project has no subscription model or API.
 - The current API CORS configuration supports one frontend origin through `FRONTEND_URL`. Add an explicit origin allowlist before supporting preview domains or multiple production domains.
 
