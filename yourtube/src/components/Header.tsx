@@ -2,15 +2,23 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, Search, Upload, LogOut } from "lucide-react";
+import { Menu, Search, Upload, LogOut, Moon, Sun, Shield } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import api from "@/lib/api";
 import VideoUploader from "./VideoUploader";
 
 export default function Header({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const [query, setQuery] = useState("");
   const [showUploader, setShowUploader] = useState(false);
   const router = useRouter();
-  const { user, loginWithGoogle, logout, loading } = useAuth();
+  const { user, loginWithGoogle, logout, loading, refreshUser, loginError } = useAuth();
+  const theme = user?.effectiveTheme || "light";
+  async function toggleTheme() {
+    if (!user) return;
+    const { data } = await api.patch("/user/theme", { theme: theme === "dark" ? "light" : "dark" });
+    document.documentElement.classList.toggle("dark", data.user.effectiveTheme === "dark");
+    await refreshUser();
+  }
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -55,6 +63,9 @@ export default function Header({ onToggleSidebar }: { onToggleSidebar?: () => vo
 
       <div className="flex items-center gap-3">
         {user && (
+          <>
+          <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-100" title="Change theme">{theme === "dark" ? <Sun size={20}/> : <Moon size={20}/>}</button>
+          <Link href="/security" className="p-2 rounded-full hover:bg-gray-100" title="Security"><Shield size={20}/></Link>
           <button
             onClick={() => setShowUploader(true)}
             className="p-2 rounded-full hover:bg-gray-100"
@@ -63,6 +74,7 @@ export default function Header({ onToggleSidebar }: { onToggleSidebar?: () => vo
           >
             <Upload size={20} />
           </button>
+          </>
         )}
 
         {loading ? (
@@ -101,6 +113,12 @@ export default function Header({ onToggleSidebar }: { onToggleSidebar?: () => vo
           </button>
         )}
       </div>
+
+      {!loading && !user && loginError && (
+        <p role="alert" className="absolute right-4 top-14 max-w-sm rounded bg-red-50 px-3 py-2 text-sm text-red-700 shadow">
+          {loginError}
+        </p>
+      )}
 
       {showUploader && (
         <VideoUploader onClose={() => setShowUploader(false)} />

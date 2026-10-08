@@ -6,6 +6,8 @@ export interface AppUser {
   description?: string;
   image?: string;
   joinedon?: string;
+  themePreference?: "light" | "dark" | null;
+  effectiveTheme?: "light" | "dark";
 }
 
 export interface Video {

@@ -1,11 +1,14 @@
 import express from "express";
-import { loginUser, updateUser, getUserById } from "../controllers/userController.js";
-
+import { getCurrentUser, getSecurity, getUserById, loginUser, logoutUser, revokeDevice, updateTheme, updateUser, verifyOtp } from "../controllers/userController.js";
+import { requireFirebaseIdentity, requireSession } from "../middleware/auth.js";
 const router = express.Router();
-
-router.post("/login", loginUser);
-router.patch("/update/:id", updateUser);
-// Added so the channel page can load ANY channel by id, not just the logged-in user
+router.post("/login", requireFirebaseIdentity, loginUser);
+router.post("/verify-otp", requireFirebaseIdentity, verifyOtp);
+router.get("/session", requireFirebaseIdentity, requireSession, getCurrentUser);
+router.post("/logout", requireSession, logoutUser);
+router.patch("/theme", requireSession, updateTheme);
+router.get("/security", requireSession, getSecurity);
+router.delete("/security/devices/:deviceId", requireSession, revokeDevice);
+router.patch("/update/:id", requireSession, updateUser);
 router.get("/:id", getUserById);
-
 export default router;

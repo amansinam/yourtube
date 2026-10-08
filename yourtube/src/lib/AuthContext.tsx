@@ -1,135 +1,27 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
-import {
-  onAuthStateChanged,
-  signInWithPopup,
-  signInWithRedirect,
-  signOut,
-  User as FirebaseUser,
-} from "firebase/auth";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut, User as FirebaseUser } from "firebase/auth";
+import { AxiosError } from "axios";
 import { auth, googleProvider } from "./firebase";
 import api from "./api";
 import { AppUser } from "./types";
-
-interface AuthContextValue {
-  user: AppUser | null;
-  firebaseUser: FirebaseUser | null;
-  loading: boolean;
-  loginWithGoogle: () => Promise<void>;
-  logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-const STORAGE_KEY = "yourtube_user";
-
+interface AuthValue { user: AppUser | null; firebaseUser: FirebaseUser | null; loading: boolean; otpChallenge: { challengeId: string } | null; loginError: string | null; loginWithGoogle: () => Promise<void>; verifyOtp: (code: string, trust: boolean) => Promise<void>; logout: () => Promise<void>; refreshUser: () => Promise<void>; }
+const AuthContext = createContext<AuthValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  // Start "loading" true and only flip it false once Firebase has told us the
-  // real auth state. This is the fix for issue #9: previously the app read
-  // localStorage once on mount but never waited for / reconciled against
-  // Firebase's own onAuthStateChanged callback, so a refresh could show a
-  // flash of "logged out" or a stale user.
-  const [loading, setLoading] = useState(true);
-
-  async function syncMongoUser(fbUser: FirebaseUser) {
-    const { data } = await api.post("/user/login", {
-      email: fbUser.email,
-      name: fbUser.displayName,
-      image: fbUser.photoURL,
-    });
-    if (data?.success) {
-      setUser(data.user);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
-      }
-    }
-  }
-
-  useEffect(() => {
-    // 1. Optimistically read any cached user so the UI doesn't flash
-    //    "signed out" while Firebase is still initializing.
-    if (typeof window !== "undefined") {
-      const cached = window.localStorage.getItem(STORAGE_KEY);
-      if (cached) {
-        try {
-          setUser(JSON.parse(cached));
-        } catch {
-          window.localStorage.removeItem(STORAGE_KEY);
-        }
-      }
-    }
-
-    // 2. Let Firebase be the source of truth once it resolves.
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setFirebaseUser(fbUser);
-      if (fbUser) {
-        try {
-          await syncMongoUser(fbUser);
-        } catch (err) {
-          console.error("Failed to sync user with backend:", err);
-        }
-      } else {
-        setUser(null);
-        if (typeof window !== "undefined") {
-          window.localStorage.removeItem(STORAGE_KEY);
-        }
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  async function loginWithGoogle() {
-    // `onAuthStateChanged` above performs the MongoDB sync as soon as
-    // Firebase completes the popup sign-in. Calling it here too races two
-    // create-user requests against MongoDB's unique email index.
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      // Browsers can block an OAuth popup. Redirect sign-in is handled by the
-      // same Firebase auth-state listener after the browser returns here.
-      if ((err as { code?: string })?.code === "auth/popup-blocked") {
-        await signInWithRedirect(auth, googleProvider);
-        return;
-      }
-      throw err;
-    }
-  }
-
-  async function logout() {
-    await signOut(auth);
-    setUser(null);
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-  }
-
-  async function refreshUser() {
-    if (firebaseUser) {
-      await syncMongoUser(firebaseUser);
-    }
-  }
-
-  return (
-    <AuthContext.Provider
-      value={{ user, firebaseUser, loading, loginWithGoogle, logout, refreshUser }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+ const [user,setUser]=useState<AppUser|null>(null),[firebaseUser,setFirebaseUser]=useState<FirebaseUser|null>(null),[loading,setLoading]=useState(true),[otpChallenge,setOtpChallenge]=useState<{challengeId:string}|null>(null),[loginError,setLoginError]=useState<string|null>(null);
+ const authHeader=async(fb:FirebaseUser)=>({Authorization:`Bearer ${await fb.getIdToken()}`});
+ async function restoreSession(fb:FirebaseUser){const {data}=await api.get("/user/session",{headers:await authHeader(fb)});setUser(data.user);setOtpChallenge(null);}
+ async function begin(fb:FirebaseUser){
+   try { await restoreSession(fb); return; }
+   catch (error) { const status=(error as AxiosError).response?.status; if (status !== 401 && status !== 403) throw error; }
+   const {data}=await api.post("/user/login",{}, {headers:await authHeader(fb)});
+   if(data.authenticated){setUser(data.user);setOtpChallenge(null);}else if(data.otpRequired)setOtpChallenge({challengeId:data.challengeId});
+ }
+ const message=(error:unknown)=>((error as AxiosError<{message?:string}>).response?.data?.message || "Secure sign-in could not start. Please try again.");
+ useEffect(()=>onAuthStateChanged(auth,async fb=>{setFirebaseUser(fb);setUser(null);setOtpChallenge(null);setLoginError(null);if(fb)try{await begin(fb);}catch(error){console.error("Secure sign-in could not start",error);setLoginError(message(error));}setLoading(false);}),[]);
+ async function loginWithGoogle(){try{await signInWithPopup(auth,googleProvider);}catch(e){if((e as {code?:string}).code==="auth/popup-blocked")return signInWithRedirect(auth,googleProvider);throw e;}}
+ async function verifyOtp(code:string,trust:boolean){if(!firebaseUser||!otpChallenge)throw new Error("No verification pending");const {data}=await api.post("/user/verify-otp",{challengeId:otpChallenge.challengeId,code,trustDevice:trust},{headers:await authHeader(firebaseUser)});setUser(data.user);setOtpChallenge(null);setLoginError(null);}
+ async function logout(){try{await api.post("/user/logout");}finally{await signOut(auth);setUser(null);setOtpChallenge(null);setLoginError(null);}}
+ async function refreshUser(){if(!firebaseUser)return;try{await restoreSession(firebaseUser);}catch(error){setLoginError(message(error));throw error;}}
+ return <AuthContext.Provider value={{user,firebaseUser,loading,otpChallenge,loginError,loginWithGoogle,verifyOtp,logout,refreshUser}}>{children}</AuthContext.Provider>;
 }
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
-  return ctx;
-}
+export function useAuth(){const ctx=useContext(AuthContext);if(!ctx)throw new Error("useAuth must be used within an AuthProvider");return ctx;}

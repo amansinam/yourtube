@@ -1,8 +1,9 @@
+import "dotenv/config";
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import bodyParser from "body-parser";
-import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -13,8 +14,6 @@ import historyRoutes from "./routes/historyRoutes.js";
 import likeRoutes from "./routes/likeRoutes.js";
 import watchRoutes from "./routes/watchRoutes.js";
 import { uploadDir } from "./filehelper/upload.js";
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +34,8 @@ app.use(
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.set("trust proxy", 1);
 
 // ---- Health check ----
 app.get("/", (req, res) => {
