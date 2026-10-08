@@ -17,7 +17,7 @@ function serializeVideo(video) {
 // GET /history/:userId
 export async function getHistory(req, res) {
   try {
-    const { userId } = req.params;
+    const userId = req.authUserId;
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ success: false, message: "Invalid user id" });
@@ -55,7 +55,7 @@ export async function getHistory(req, res) {
 export async function addHistory(req, res) {
   try {
     const { videoId } = req.params;
-    const { userId } = req.body;
+    const userId = req.authUserId;
 
     if (!mongoose.Types.ObjectId.isValid(videoId)) {
       return res.status(400).json({ success: false, message: "Invalid video id" });

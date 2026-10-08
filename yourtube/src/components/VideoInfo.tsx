@@ -113,7 +113,7 @@ export default function VideoInfo({ video }: { video: Video }) {
 
   return (
     <div className="mt-4">
-      <h1 className="text-lg font-semibold text-gray-900">{video.videotitle}</h1>
+      <h1 className="text-lg font-bold leading-6 text-gray-900 sm:text-xl">{video.videotitle}</h1>
 
       <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
         <Link
@@ -129,12 +129,12 @@ export default function VideoInfo({ video }: { video: Video }) {
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleLike}
             disabled={busy}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${
-              liked ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"
+              liked ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-900"
             }`}
           >
             <ThumbsUp size={16} />
@@ -144,7 +144,7 @@ export default function VideoInfo({ video }: { video: Video }) {
             onClick={handleSave}
             disabled={busy}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${
-              saved ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"
+              saved ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-900"
             }`}
           >
             {saved ? <Check size={16} /> : <Clock size={16} />}

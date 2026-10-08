@@ -8,7 +8,11 @@ import { useAuth } from "@/lib/AuthContext";
 
 function ThemeSync() {
   const { user } = useAuth();
-  useEffect(() => { document.documentElement.classList.toggle("dark", user?.effectiveTheme === "dark"); }, [user?.effectiveTheme]);
+  useEffect(() => {
+    const guestTheme = window.localStorage.getItem("yourtube_guest_theme");
+    const theme = user?.effectiveTheme || guestTheme || "light";
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [user?.effectiveTheme]);
   return null;
 }
 

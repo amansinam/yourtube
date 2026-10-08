@@ -18,16 +18,16 @@ export default function VideoCard({ video }: { video: Video }) {
   }
 
   return (
-    <Link href={`/watch/${video._id}`} className="block group">
-      <div className="w-full aspect-video rounded-xl overflow-hidden">
-        <VideoThumbnail video={video} className="w-full h-full" />
+    <Link href={`/watch/${video._id}`} className="group block rounded-xl p-1 transition duration-200 hover:-translate-y-0.5 hover:bg-gray-50 hover:shadow-lg focus-visible:shadow-lg">
+      <div className="w-full aspect-video overflow-hidden rounded-xl bg-gray-100">
+        <VideoThumbnail video={video} className="h-full w-full transition duration-300 group-hover:scale-[1.02]" />
       </div>
       <div className="flex gap-3 mt-3">
         <div className="w-9 h-9 rounded-full bg-gray-300 shrink-0 flex items-center justify-center text-sm font-semibold text-gray-700">
           {video.videochanel?.[0]?.toUpperCase() || "?"}
         </div>
         <div className="min-w-0">
-          <h3 className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:underline">
+          <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-gray-900">
             {video.videotitle}
           </h3>
           <p className="text-xs text-gray-600 mt-1 line-clamp-1">{video.videochanel}</p>

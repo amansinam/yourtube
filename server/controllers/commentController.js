@@ -69,7 +69,8 @@ export async function getComments(req, res) {
 
 export async function postComment(req, res) {
   try {
-    const { userid, videoid, commentbody, parentComment } = req.body;
+    const { videoid, commentbody, parentComment } = req.body;
+    const userid = req.authUserId;
     const text = cleanText(commentbody);
     if (!validId(userid) || !validId(videoid)) return res.status(400).json({ success: false, message: "A valid signed-in user and video are required" });
     if (!text) return res.status(400).json({ success: false, message: "Comment cannot be empty" });
@@ -94,7 +95,7 @@ export async function postComment(req, res) {
 
 export async function editComment(req, res) {
   try {
-    const { id } = req.params; const { userId, commentbody } = req.body; const text = cleanText(commentbody);
+    const { id } = req.params; const { commentbody } = req.body; const userId = req.authUserId; const text = cleanText(commentbody);
     if (!validId(id) || !validId(userId)) return res.status(400).json({ success: false, message: "Invalid comment or user id" });
     if (!text || text.length > MAX_COMMENT_LENGTH) return res.status(400).json({ success: false, message: "Enter a valid comment of 1 to 1000 characters" });
     const comment = await Comment.findById(id);
@@ -108,7 +109,7 @@ export async function editComment(req, res) {
 
 export async function deleteComment(req, res) {
   try {
-    const { id } = req.params; const { userId } = req.body;
+    const { id } = req.params; const userId = req.authUserId;
     if (!validId(id) || !validId(userId)) return res.status(400).json({ success: false, message: "Invalid comment or user id" });
     const comment = await Comment.findById(id);
     if (!comment || comment.isDeleted) return res.status(404).json({ success: false, message: "Comment not found" });
@@ -120,7 +121,7 @@ export async function deleteComment(req, res) {
 
 export async function toggleReaction(req, res) {
   try {
-    const { id } = req.params; const { userId, reaction } = req.body;
+    const { id } = req.params; const { reaction } = req.body; const userId = req.authUserId;
     if (!validId(id) || !validId(userId) || !["like", "dislike"].includes(reaction)) return res.status(400).json({ success: false, message: "Invalid reaction request" });
     const comment = await Comment.findById(id);
     if (!comment || comment.isDeleted) return res.status(404).json({ success: false, message: "Comment not found" });

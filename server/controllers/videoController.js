@@ -75,7 +75,8 @@ export async function uploadVideo(req, res) {
       return res.status(400).json({ success: false, message: "No video file received" });
     }
 
-    const { videotitle, videochanel, uploader, category } = req.body;
+    const { videotitle, videochanel, category } = req.body;
+    const uploader = req.authUserId;
 
     if (!videotitle || !videochanel) {
       return res.status(400).json({ success: false, message: "videotitle and videochanel are required" });
@@ -154,7 +155,7 @@ function escapeRegex(value) {
 export async function deleteVideo(req, res) {
   try {
     const { videoId } = req.params;
-    const { userId } = req.body;
+    const userId = req.authUserId;
 
     if (!mongoose.Types.ObjectId.isValid(videoId)) {
       return res.status(400).json({ success: false, message: "Invalid video id" });

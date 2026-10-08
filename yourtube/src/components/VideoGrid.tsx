@@ -11,7 +11,7 @@ interface Props {
 export default function VideoGrid({ videos, loading, error, emptyMessage }: Props) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4">
+      <div className="grid grid-cols-1 gap-5 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6 xl:p-6">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="animate-pulse">
             <div className="w-full aspect-video bg-gray-200 rounded-xl" />
@@ -48,7 +48,7 @@ export default function VideoGrid({ videos, loading, error, emptyMessage }: Prop
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4">
+    <div className="grid grid-cols-1 gap-5 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6 xl:p-6">
       {videos.map((video) => (
         <VideoCard key={video._id} video={video} />
       ))}

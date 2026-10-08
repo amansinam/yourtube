@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Backend API for YourTube - a YouTube-style video sharing app",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

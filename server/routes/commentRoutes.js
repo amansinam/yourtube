@@ -6,13 +6,14 @@ import {
   deleteComment,
   toggleReaction,
 } from "../controllers/commentController.js";
+import { requireSession } from "../middleware/auth.js";
 
 const router = express.Router();
 
 router.get("/:videoid", getComments);
-router.post("/postcomment", postComment);
-router.post("/editcomment/:id", editComment);
-router.delete("/deletecomment/:id", deleteComment);
-router.post("/:id/reaction", toggleReaction);
+router.post("/postcomment", requireSession, postComment);
+router.post("/editcomment/:id", requireSession, editComment);
+router.delete("/deletecomment/:id", requireSession, deleteComment);
+router.post("/:id/reaction", requireSession, toggleReaction);
 
 export default router;
