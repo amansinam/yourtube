@@ -132,14 +132,14 @@ Import the same repository as a separate Vercel project.
 | Install Command | `npm ci` |
 | Build Command | `npm run build` |
 
-Set all frontend variables above. `NEXT_PUBLIC_BACKEND_URL` must be the HTTPS URL of the deployed Render service, without a trailing slash.
+Set all frontend variables above. `NEXT_PUBLIC_BACKEND_URL` must be the HTTPS URL of the deployed Render service, without a trailing slash. Next.js uses it as the destination for the same-origin `/api/backend/*` rewrite; the browser itself calls that Vercel path so the session cookie remains first-party.
 
 ### 3. Connect the services
 
 1. Set Render `FRONTEND_URL` to the exact Vercel production origin, for example `https://yourtube.example.vercel.app`.
 2. Redeploy the backend after changing `FRONTEND_URL`.
 3. In Firebase Console, add the Vercel domain to **Authentication → Settings → Authorized domains**.
-4. Confirm the backend uses HTTPS. Production session cookies are `Secure` and `SameSite=None`, which is required because Vercel and Render use different origins.
+4. The frontend sends API requests through a same-origin Vercel rewrite to Render. This keeps the session cookie first-party in the browser; keep `NEXT_PUBLIC_BACKEND_URL` set to the HTTPS Render URL so the rewrite can reach the backend.
 5. Confirm the frontend Firebase settings and `FIREBASE_SERVICE_ACCOUNT_JSON` on the backend belong to the same Firebase project. Brevo only delivers the email code; it cannot fix Firebase identity-token errors.
 
 ### Troubleshoot email-code sign-in
