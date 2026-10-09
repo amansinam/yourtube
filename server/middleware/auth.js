@@ -39,7 +39,7 @@ export async function requireFirebaseIdentity(req, res, next) {
 
 export async function requireSession(req, res, next) {
   const token = req.cookies?.[SESSION_COOKIE];
-  if (!token) return res.status(401).json({ success: false, message: "Sign in and complete verification first" });
+  if (!token) return res.status(401).json({ success: false, message: "Sign in first" });
   const session = await AppSession.findOne({ tokenHash: hashSecret(token), expiresAt: { $gt: new Date() } });
   if (!session) return res.status(401).json({ success: false, message: "Session expired. Please sign in again." });
   req.authUserId = String(session.user);

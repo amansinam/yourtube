@@ -2,10 +2,8 @@ import crypto from "crypto";
 import { UAParser } from "ua-parser-js";
 
 export const SESSION_COOKIE = "yourtube_session";
-export const TRUST_COOKIE = "yourtube_trust";
 export const hashSecret = (value) => crypto.createHash("sha256").update(value).digest("hex");
 export const randomToken = () => crypto.randomBytes(32).toString("base64url");
-export const randomOtp = () => crypto.randomInt(100000, 1000000).toString();
 
 export function requestDetails(req) {
   const parsed = new UAParser(req.get("user-agent") || "").getResult();

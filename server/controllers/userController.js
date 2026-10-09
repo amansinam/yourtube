@@ -1,16 +1,11 @@
 import mongoose from "mongoose";
 import User from "../Modals/User.js";
 import LoginEvent from "../Modals/LoginEvent.js";
-import OtpChallenge from "../Modals/OtpChallenge.js";
 import TrustedDevice from "../Modals/TrustedDevice.js";
 import AppSession from "../Modals/AppSession.js";
-import { cookieOptions, hashSecret, randomOtp, randomToken, requestDetails, SESSION_COOKIE, TRUST_COOKIE } from "../lib/security.js";
-import { MailDeliveryError, mailConfigurationMessage, mailConfigured, sendOtpEmail } from "../lib/mailer.js";
+import { cookieOptions, hashSecret, randomToken, requestDetails, SESSION_COOKIE } from "../lib/security.js";
 
 const MINUTE = 60_000;
-const otpExpiry = () => Number(process.env.OTP_EXPIRY_MINUTES || 10);
-const otpAttempts = () => Number(process.env.OTP_MAX_ATTEMPTS || 5);
-const trustDays = () => Number(process.env.TRUST_DEVICE_DAYS || 30);
 const sessionDays = () => Number(process.env.SESSION_DAYS || 7);
 const istTheme = () => Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", hourCycle: "h23" }).format()) >= 5 && Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", hourCycle: "h23" }).format()) < 18 ? "light" : "dark";
 const safeUser = (user) => {
@@ -19,7 +14,7 @@ const safeUser = (user) => {
   const { firebaseUid, ...publicUser } = source;
   return { ...publicUser, effectiveTheme: user.themePreference || istTheme() };
 };
-const record = (user, status, req, otpVerified = false) => LoginEvent.create({ user: user._id, status, ...requestDetails(req), otpVerified });
+const record = (user, status, req) => LoginEvent.create({ user: user._id, status, ...requestDetails(req) });
 
 async function userForFirebase(req) {
   const { uid, email, name, picture } = req.firebaseUser;
@@ -34,96 +29,22 @@ async function session(user, res) {
   await AppSession.create({ user: user._id, tokenHash: hashSecret(raw), expiresAt: new Date(Date.now() + days * 1440 * MINUTE) });
   res.cookie(SESSION_COOKIE, raw, cookieOptions(days * 1440 * MINUTE));
 }
-async function trust(user, req, res) {
-  const raw = randomToken(), days = trustDays(), d = requestDetails(req);
-  await TrustedDevice.create({ user: user._id, tokenHash: hashSecret(raw), label: `${d.browser} on ${d.os}`, browser: d.browser, os: d.os, deviceType: d.deviceType, lastIp: d.ip, expiresAt: new Date(Date.now() + days * 1440 * MINUTE) });
-  res.cookie(TRUST_COOKIE, raw, cookieOptions(days * 1440 * MINUTE));
-  await record(user, "trusted_device_created", req, true);
-}
-
 export async function loginUser(req, res) {
   try {
-    const user = await userForFirebase(req), token = req.cookies?.[TRUST_COOKIE];
-    const device = token && await TrustedDevice.findOne({ user: user._id, tokenHash: hashSecret(token), expiresAt: { $gt: new Date() } });
-    if (device) {
-      device.lastUsedAt = new Date(); device.lastIp = requestDetails(req).ip; await device.save();
-      await session(user, res); await record(user, "login_success", req, true);
-      return res.json({ success: true, authenticated: true, user: safeUser(user) });
-    }
-    if (!mailConfigured()) { await record(user, "login_denied", req); return res.status(503).json({ success: false, message: mailConfigurationMessage() }); }
-    const existing = await OtpChallenge.findOne({ user: user._id, usedAt: null, expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 });
-    if (existing && existing.resendAvailableAt > new Date()) return res.status(202).json({ success: true, otpRequired: true, challengeId: existing._id, expiresIn: Math.max(0, Math.ceil((existing.expiresAt - Date.now()) / 1000)), resendAvailableIn: Math.ceil((existing.resendAvailableAt - Date.now()) / 1000) });
-    const code = randomOtp(), expiry = otpExpiry();
-    // Do not leave a challenge that the user cannot complete when email delivery rejects
-    // delivery. The OTP exists only in memory until mail delivery succeeds.
-    await sendOtpEmail(user.email, code);
-    const challenge = await OtpChallenge.create({ user: user._id, codeHash: hashSecret(code), expiresAt: new Date(Date.now() + expiry * MINUTE), resendAvailableAt: new Date(Date.now() + Number(process.env.OTP_RESEND_SECONDS || 60) * 1000), ...requestDetails(req) });
-    await record(user, "otp_required", req); await record(user, "otp_sent", req);
-    return res.status(202).json({ success: true, otpRequired: true, challengeId: challenge._id, expiresIn: expiry * 60, resendAvailableIn: Math.ceil((challenge.resendAvailableAt - Date.now()) / 1000) });
-  } catch (error) { console.error("secure login error:", error.message); if (error instanceof MailDeliveryError) return res.status(503).json({ success: false, message: error.message }); return res.status(500).json({ success: false, message: "Unable to start secure sign-in" }); }
-}
-export async function resendOtp(req, res) {
-  try {
     const user = await userForFirebase(req);
-    const { challengeId } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(challengeId)) {
-      return res.status(400).json({ success: false, message: "A valid verification request is required" });
-    }
-    const challenge = await OtpChallenge.findOne({
-      _id: challengeId,
-      user: user._id,
-      usedAt: null,
-      expiresAt: { $gt: new Date() },
-    });
-    if (!challenge) {
-      return res.status(400).json({ success: false, message: "This verification request has expired. Sign in again to request a new code." });
-    }
-    const resendAvailableIn = Math.ceil((challenge.resendAvailableAt - Date.now()) / 1000);
-    if (resendAvailableIn > 0) {
-      return res.status(429).json({
-        success: false,
-        message: `Please wait ${resendAvailableIn} seconds before requesting another code`,
-        resendAvailableIn,
-      });
-    }
-    if (!mailConfigured()) {
-      return res.status(503).json({ success: false, message: mailConfigurationMessage() });
-    }
-
-    const code = randomOtp();
-    await sendOtpEmail(user.email, code);
-    challenge.codeHash = hashSecret(code);
-    challenge.attempts = 0;
-    challenge.resendAvailableAt = new Date(Date.now() + Number(process.env.OTP_RESEND_SECONDS || 60) * 1000);
-    await challenge.save();
-    await record(user, "otp_sent", req);
-    return res.json({
-      success: true,
-      otpRequired: true,
-      challengeId: challenge._id,
-      expiresIn: Math.max(0, Math.ceil((challenge.expiresAt - Date.now()) / 1000)),
-      resendAvailableIn: Math.ceil((challenge.resendAvailableAt - Date.now()) / 1000),
-    });
+    await session(user, res);
+    await record(user, "login_success", req);
+    return res.json({ success: true, authenticated: true, user: safeUser(user) });
   } catch (error) {
-    console.error("OTP resend error:", error.message);
-    if (error instanceof MailDeliveryError) return res.status(503).json({ success: false, message: error.message });
-    return res.status(500).json({ success: false, message: "Unable to resend verification code" });
+    console.error("Google sign-in session error:", error.message);
+    return res.status(500).json({ success: false, message: "Unable to complete Google sign-in" });
   }
 }
-export async function verifyOtp(req, res) {
-  try {
-    const user = await userForFirebase(req), { challengeId, code, trustDevice = false } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(challengeId) || !/^\d{6}$/.test(String(code || ""))) return res.status(400).json({ success: false, message: "A valid verification code is required" });
-    const challenge = await OtpChallenge.findOne({ _id: challengeId, user: user._id, usedAt: null });
-    if (!challenge || challenge.expiresAt <= new Date() || challenge.attempts >= otpAttempts()) { await record(user, "otp_failure", req); return res.status(400).json({ success: false, message: "Verification code is expired, invalid, or locked" }); }
-    if (challenge.codeHash !== hashSecret(String(code))) { challenge.attempts += 1; await challenge.save(); await record(user, "otp_failure", req); return res.status(400).json({ success: false, message: "Incorrect verification code" }); }
-    challenge.usedAt = new Date(); await challenge.save();
-    if (trustDevice) await trust(user, req, res);
-    await session(user, res); await record(user, "otp_success", req, true); await record(user, "login_success", req, true);
-    return res.json({ success: true, authenticated: true, user: safeUser(user) });
-  } catch (error) { console.error("OTP verification error:", error.message); return res.status(500).json({ success: false, message: "Unable to verify code" }); }
+export async function logoutUser(req, res) {
+  await AppSession.findByIdAndDelete(req.sessionId);
+  res.clearCookie(SESSION_COOKIE, cookieOptions(0));
+  return res.json({ success: true });
 }
-export async function logoutUser(req, res) { await AppSession.findByIdAndDelete(req.sessionId); res.clearCookie(SESSION_COOKIE, cookieOptions(0)); return res.json({ success: true }); }
 export async function getCurrentUser(req, res) {
   const user = await User.findById(req.authUserId);
   // A Firebase account change in the same browser must not inherit the
