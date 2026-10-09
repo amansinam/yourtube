@@ -147,6 +147,7 @@ Set all frontend variables above. `NEXT_PUBLIC_BACKEND_URL` must be the HTTPS UR
 - Set `BREVO_API_KEY` (an active Brevo v3 API key) and `BREVO_SENDER_EMAIL` (an email address verified in Brevo) on the backend. The variable name is `BREVO_API_KEY`, not `BRAVO_API_KEY`.
 - Redeploy or restart the backend after changing its environment variables. If using Vercel and Render, also ensure `FRONTEND_URL` exactly matches the frontend origin.
 - A Brevo key or sender error is reported separately from Firebase sign-in errors. If Google sign-in succeeds but the backend rejects the Firebase identity token, align `FIREBASE_SERVICE_ACCOUNT_JSON` with the Firebase project configured by the frontend.
+- The verification dialog offers a resend button after the configured `OTP_RESEND_SECONDS` cooldown. Check the account email's spam folder; a repeated sign-in during the cooldown reuses the existing challenge rather than sending another email.
 - If an earlier backend login failed while Firebase remained signed in, click **Sign in** again to retry the backend session and email-code step.
 
 ## Pre-launch checklist
