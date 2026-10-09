@@ -5,7 +5,7 @@ import OtpChallenge from "../Modals/OtpChallenge.js";
 import TrustedDevice from "../Modals/TrustedDevice.js";
 import AppSession from "../Modals/AppSession.js";
 import { cookieOptions, hashSecret, randomOtp, randomToken, requestDetails, SESSION_COOKIE, TRUST_COOKIE } from "../lib/security.js";
-import { mailConfigured, sendOtpEmail } from "../lib/mailer.js";
+import { MailDeliveryError, mailConfigurationMessage, mailConfigured, sendOtpEmail } from "../lib/mailer.js";
 
 const MINUTE = 60_000;
 const otpExpiry = () => Number(process.env.OTP_EXPIRY_MINUTES || 10);
@@ -50,17 +50,17 @@ export async function loginUser(req, res) {
       await session(user, res); await record(user, "login_success", req, true);
       return res.json({ success: true, authenticated: true, user: safeUser(user) });
     }
-    if (!mailConfigured()) { await record(user, "login_denied", req); return res.status(503).json({ success: false, message: "OTP email is not configured on the server" }); }
+    if (!mailConfigured()) { await record(user, "login_denied", req); return res.status(503).json({ success: false, message: mailConfigurationMessage() }); }
     const existing = await OtpChallenge.findOne({ user: user._id, usedAt: null, expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 });
-    if (existing && existing.resendAvailableAt > new Date()) return res.status(429).json({ success: false, message: "Please wait before requesting another verification code", retryAfter: Math.ceil((existing.resendAvailableAt - Date.now()) / 1000) });
+    if (existing && existing.resendAvailableAt > new Date()) return res.status(202).json({ success: true, otpRequired: true, challengeId: existing._id, expiresIn: Math.max(0, Math.ceil((existing.expiresAt - Date.now()) / 1000)), resendAvailableIn: Math.ceil((existing.resendAvailableAt - Date.now()) / 1000) });
     const code = randomOtp(), expiry = otpExpiry();
-    // Do not leave a challenge that the user cannot complete when SMTP rejects
+    // Do not leave a challenge that the user cannot complete when email delivery rejects
     // delivery. The OTP exists only in memory until mail delivery succeeds.
     await sendOtpEmail(user.email, code);
     const challenge = await OtpChallenge.create({ user: user._id, codeHash: hashSecret(code), expiresAt: new Date(Date.now() + expiry * MINUTE), resendAvailableAt: new Date(Date.now() + Number(process.env.OTP_RESEND_SECONDS || 60) * 1000), ...requestDetails(req) });
     await record(user, "otp_required", req); await record(user, "otp_sent", req);
     return res.status(202).json({ success: true, otpRequired: true, challengeId: challenge._id, expiresIn: expiry * 60 });
-  } catch (error) { console.error("secure login error:", error.message); return res.status(500).json({ success: false, message: "Unable to start secure sign-in" }); }
+  } catch (error) { console.error("secure login error:", error.message); if (error instanceof MailDeliveryError) return res.status(503).json({ success: false, message: error.message }); return res.status(500).json({ success: false, message: "Unable to start secure sign-in" }); }
 }
 export async function verifyOtp(req, res) {
   try {

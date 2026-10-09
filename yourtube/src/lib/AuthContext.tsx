@@ -17,9 +17,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    if(data.authenticated){setUser(data.user);setOtpChallenge(null);}else if(data.otpRequired)setOtpChallenge({challengeId:data.challengeId});
  }
  const message=(error:unknown)=>((error as AxiosError<{message?:string}>).response?.data?.message || "Secure sign-in could not start. Please try again.");
- const firebaseMessage=(error:unknown)=>{const code=(error as {code?:string}).code; const messages:Record<string,string>={"auth/unauthorized-domain":"This website domain is not authorized in Firebase Authentication.","auth/popup-blocked":"Your browser blocked the sign-in popup. Allow popups and try again.","auth/popup-closed-by-user":"Sign-in was cancelled before it was completed.","auth/operation-not-allowed":"Google sign-in is not enabled in Firebase Authentication.","auth/network-request-failed":"Network connection failed while contacting Firebase."}; return messages[code||""] || "Google sign-in could not start. Please try again.";};
+ const firebaseMessage=(error:unknown)=>{const code=(error as {code?:string}).code; const messages:Record<string,string>={"auth/invalid-api-key":"The Firebase web API key is invalid. Check NEXT_PUBLIC_FIREBASE_API_KEY.","auth/unauthorized-domain":"This website domain is not authorized in Firebase Authentication.","auth/popup-blocked":"Your browser blocked the sign-in popup. Allow popups and try again.","auth/popup-closed-by-user":"Sign-in was cancelled before it was completed.","auth/operation-not-allowed":"Google sign-in is not enabled in Firebase Authentication.","auth/network-request-failed":"Network connection failed while contacting Firebase."}; return messages[code||""] || "Google sign-in could not start. Please try again.";};
  useEffect(()=>onAuthStateChanged(auth,async fb=>{setFirebaseUser(fb);setUser(null);setOtpChallenge(null);setLoginError(null);if(fb)try{await begin(fb);}catch(error){console.error("Secure sign-in could not start",error);setLoginError(message(error));}setLoading(false);}),[]);
- async function loginWithGoogle(){setLoginError(null);try{await signInWithPopup(auth,googleProvider);}catch(e){if((e as {code?:string}).code==="auth/popup-blocked"){try{return await signInWithRedirect(auth,googleProvider);}catch(redirectError){setLoginError(firebaseMessage(redirectError));return;}}setLoginError(firebaseMessage(e));}}
+ async function loginWithGoogle(){
+   setLoginError(null);
+   if(auth.currentUser){
+     setLoading(true);
+     try{await begin(auth.currentUser);}
+     catch(error){console.error("Secure sign-in could not start",error);setLoginError(message(error));}
+     finally{setLoading(false);}
+     return;
+   }
+   try{await signInWithPopup(auth,googleProvider);}
+   catch(e){if((e as {code?:string}).code==="auth/popup-blocked"){try{return await signInWithRedirect(auth,googleProvider);}catch(redirectError){setLoginError(firebaseMessage(redirectError));return;}}setLoginError(firebaseMessage(e));}
+ }
  async function verifyOtp(code:string,trust:boolean){if(!firebaseUser||!otpChallenge)throw new Error("No verification pending");const {data}=await api.post("/user/verify-otp",{challengeId:otpChallenge.challengeId,code,trustDevice:trust},{headers:await authHeader(firebaseUser)});setUser(data.user);setOtpChallenge(null);setLoginError(null);}
  async function logout(){try{await api.post("/user/logout");}finally{await signOut(auth);setUser(null);setOtpChallenge(null);setLoginError(null);}}
  async function refreshUser(){if(!firebaseUser)return;try{await restoreSession(firebaseUser);}catch(error){setLoginError(message(error));throw error;}}
