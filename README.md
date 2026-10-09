@@ -140,6 +140,14 @@ Set all frontend variables above. `NEXT_PUBLIC_BACKEND_URL` must be the HTTPS UR
 2. Redeploy the backend after changing `FRONTEND_URL`.
 3. In Firebase Console, add the Vercel domain to **Authentication → Settings → Authorized domains**.
 4. Confirm the backend uses HTTPS. Production session cookies are `Secure` and `SameSite=None`, which is required because Vercel and Render use different origins.
+5. Confirm the frontend Firebase settings and `FIREBASE_SERVICE_ACCOUNT_JSON` on the backend belong to the same Firebase project. Brevo only delivers the email code; it cannot fix Firebase identity-token errors.
+
+### Troubleshoot email-code sign-in
+
+- Set `BREVO_API_KEY` (an active Brevo v3 API key) and `BREVO_SENDER_EMAIL` (an email address verified in Brevo) on the backend. The variable name is `BREVO_API_KEY`, not `BRAVO_API_KEY`.
+- Redeploy or restart the backend after changing its environment variables. If using Vercel and Render, also ensure `FRONTEND_URL` exactly matches the frontend origin.
+- A Brevo key or sender error is reported separately from Firebase sign-in errors. If Google sign-in succeeds but the backend rejects the Firebase identity token, align `FIREBASE_SERVICE_ACCOUNT_JSON` with the Firebase project configured by the frontend.
+- If an earlier backend login failed while Firebase remained signed in, click **Sign in** again to retry the backend session and email-code step.
 
 ## Pre-launch checklist
 
