@@ -122,7 +122,7 @@ export default function Header({ onToggleSidebar }: { onToggleSidebar?: () => vo
             onClick={() => loginWithGoogle()}
             className="ui-button ui-button-secondary px-3 py-2 text-sm"
           >
-            Sign in
+            Sign in with Google
           </button>
         )}
       </div></div>

@@ -1,12 +1,12 @@
 # YourTube
 
-YourTube is a full-stack video-sharing platform with Google sign-in, email OTP verification, video playback, uploads, comments, likes, watch history, Watch Later, and light/dark themes.
+YourTube is a full-stack video-sharing platform with Google sign-in, video playback, uploads, comments, likes, watch history, Watch Later, and light/dark themes.
 
 | Part | Stack |
 | --- | --- |
 | Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS 4 |
 | Backend | Express 5, MongoDB/Mongoose |
-| Authentication | Firebase Authentication, Firebase Admin, cookie-backed app sessions, email OTP |
+| Authentication | Firebase Google Authentication, Firebase Admin, cookie-backed app sessions |
 | Video storage | Cloudinary |
 
 ## Repository structure
@@ -29,7 +29,6 @@ For an unrestricted public product, add rate limiting, production monitoring, a 
 - A Firebase project with Google sign-in enabled
 - Firebase service-account credentials for the backend
 - Cloudinary account/API credentials for uploads
-- Brevo API key and verified sender email for email OTP delivery
 
 ## Environment variables
 
@@ -46,24 +45,12 @@ FRONTEND_URL=http://localhost:3000
 
 FIREBASE_SERVICE_ACCOUNT_JSON={...single-line Firebase service-account JSON...}
 
-# Recommended for Render Free: Brevo HTTP API
-BREVO_API_KEY=your-brevo-api-key
-BREVO_SENDER_EMAIL=your-verified-sender@example.com
-
-# Optional SMTP fallback for local development or paid hosts
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your-user
-SMTP_PASS=your-password
-OTP_FROM_EMAIL=no-reply@example.com
-
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 ```
 
-Optional backend settings are documented in `server/.env.example`, including OTP expiry, session duration, trusted-device duration, local temporary upload directory, and history completion threshold.
+Optional backend settings are documented in `server/.env.example`, including session duration, local temporary upload directory, and history completion threshold.
 
 ### Frontend: `yourtube/.env.local`
 
@@ -77,7 +64,7 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
 ```
 
-`NEXT_PUBLIC_*` values are intentionally visible to the browser. Do not put Firebase Admin, SMTP, MongoDB, Cloudinary secret, or other private credentials there.
+`NEXT_PUBLIC_*` values are intentionally visible to the browser. Do not put Firebase Admin, MongoDB, Cloudinary secret, or other private credentials there.
 
 ## Run locally
 
@@ -140,27 +127,19 @@ Set all frontend variables above. `NEXT_PUBLIC_BACKEND_URL` must be the HTTPS UR
 2. Redeploy the backend after changing `FRONTEND_URL`.
 3. In Firebase Console, add the Vercel domain to **Authentication → Settings → Authorized domains**.
 4. The frontend sends API requests through a same-origin Vercel rewrite to Render. This keeps the session cookie first-party in the browser; keep `NEXT_PUBLIC_BACKEND_URL` set to the HTTPS Render URL so the rewrite can reach the backend.
-5. Confirm the frontend Firebase settings and `FIREBASE_SERVICE_ACCOUNT_JSON` on the backend belong to the same Firebase project. Brevo only delivers the email code; it cannot fix Firebase identity-token errors.
-
-### Troubleshoot email-code sign-in
-
-- Set `BREVO_API_KEY` (an active Brevo v3 API key) and `BREVO_SENDER_EMAIL` (an email address verified in Brevo) on the backend. The variable name is `BREVO_API_KEY`, not `BRAVO_API_KEY`.
-- Redeploy or restart the backend after changing its environment variables. If using Vercel and Render, also ensure `FRONTEND_URL` exactly matches the frontend origin.
-- A Brevo key or sender error is reported separately from Firebase sign-in errors. If Google sign-in succeeds but the backend rejects the Firebase identity token, align `FIREBASE_SERVICE_ACCOUNT_JSON` with the Firebase project configured by the frontend.
-- The verification dialog offers a resend button after the configured `OTP_RESEND_SECONDS` cooldown. Check the account email's spam folder; a repeated sign-in during the cooldown reuses the existing challenge rather than sending another email.
-- If an earlier backend login failed while Firebase remained signed in, click **Sign in** again to retry the backend session and email-code step.
+5. Confirm the frontend Firebase settings and `FIREBASE_SERVICE_ACCOUNT_JSON` on the backend belong to the same Firebase project. The user completes Google sign-in with Firebase, and the backend verifies that identity before creating the app session.
 
 ## Pre-launch checklist
 
 - [ ] Set every backend and frontend environment variable in the host dashboards.
 - [ ] Ensure `FRONTEND_URL` exactly matches the Vercel origin—protocol and no trailing slash included.
 - [ ] Add the frontend domain to Firebase authorized domains.
-- [ ] Test Google sign-in, OTP email delivery, invalid/expired OTP behavior, logout, and session restoration.
+- [ ] Test Google sign-in, logout, and session restoration.
 - [ ] Upload a small MP4 and verify Cloudinary playback and thumbnail delivery from a separate device/network.
 - [ ] Test comments, likes, Watch Later, history, and video deletion as both owner and non-owner after authorization is fixed.
 - [ ] Run `npm run build` in `yourtube` and deploy only when it succeeds.
 - [ ] Rotate any credential that has ever been committed, pasted into chat, or shared in screenshots.
-- [ ] Configure database backups and monitor MongoDB, Cloudinary, SMTP, and hosting usage/limits.
+- [ ] Configure database backups and monitor MongoDB, Cloudinary, and hosting usage/limits.
 
 ## Verification commands
 
@@ -180,7 +159,7 @@ The backend health check should return JSON:
 
 - Uploads accept MP4 files up to 50 MB. Files are staged temporarily by the backend, uploaded to Cloudinary, then deleted locally.
 - Cloudinary credentials are required for new uploads.
-- OTP login requires Firebase Admin credentials plus either Brevo (`BREVO_API_KEY` and `BREVO_SENDER_EMAIL`) or SMTP. Brevo is recommended on Render Free because it uses HTTPS rather than blocked SMTP ports.
+- Google sign-in requires the Firebase frontend configuration and matching Firebase Admin service-account credentials on the backend.
 - The Subscriptions screen is currently a placeholder because the project has no subscription model or API.
 - The current API CORS configuration supports one frontend origin through `FRONTEND_URL`. Add an explicit origin allowlist before supporting preview domains or multiple production domains.
 

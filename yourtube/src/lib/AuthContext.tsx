@@ -4,23 +4,25 @@ import { AxiosError } from "axios";
 import { auth, googleProvider } from "./firebase";
 import api from "./api";
 import { AppUser } from "./types";
-interface AuthValue { user: AppUser | null; firebaseUser: FirebaseUser | null; loading: boolean; otpChallenge: { challengeId: string; resendAvailableIn: number } | null; loginError: string | null; loginWithGoogle: () => Promise<void>; verifyOtp: (code: string, trust: boolean) => Promise<void>; resendOtp: () => Promise<void>; logout: () => Promise<void>; refreshUser: () => Promise<void>; }
+interface AuthValue { user: AppUser | null; firebaseUser: FirebaseUser | null; loading: boolean; loginError: string | null; loginWithGoogle: () => Promise<void>; logout: () => Promise<void>; refreshUser: () => Promise<void>; }
 const AuthContext = createContext<AuthValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
- const [user,setUser]=useState<AppUser|null>(null),[firebaseUser,setFirebaseUser]=useState<FirebaseUser|null>(null),[loading,setLoading]=useState(true),[otpChallenge,setOtpChallenge]=useState<{challengeId:string;resendAvailableIn:number}|null>(null),[loginError,setLoginError]=useState<string|null>(null);
+ const [user,setUser]=useState<AppUser|null>(null),[firebaseUser,setFirebaseUser]=useState<FirebaseUser|null>(null),[loading,setLoading]=useState(true),[loginError,setLoginError]=useState<string|null>(null);
  const popupFlow=useRef(false);
  const authHeader=async(fb:FirebaseUser)=>({Authorization:`Bearer ${await fb.getIdToken()}`});
- async function restoreSession(fb:FirebaseUser){const {data}=await api.get("/user/session",{headers:await authHeader(fb)});setUser(data.user);setOtpChallenge(null);}
+ async function restoreSession(fb:FirebaseUser){const {data}=await api.get("/user/session",{headers:await authHeader(fb)});setUser(data.user);}
  async function begin(fb:FirebaseUser){
    try { await restoreSession(fb); return; }
    catch (error) { const status=(error as AxiosError).response?.status; if (status !== 401 && status !== 403) throw error; }
    const {data}=await api.post("/user/login",{}, {headers:await authHeader(fb)});
-   if(data.authenticated){setUser(data.user);setOtpChallenge(null);}else if(data.otpRequired)setOtpChallenge({challengeId:data.challengeId,resendAvailableIn:data.resendAvailableIn||0});
+   if(!data.authenticated||!data.user)throw new Error("The backend did not complete Google sign-in. Please try again.");
+   setUser(data.user);
  }
  const message=(error:unknown)=>{
    const requestError=error as AxiosError<{message?:string}>;
    if(requestError.response?.data?.message)return requestError.response.data.message;
    if(requestError.isAxiosError&&!requestError.response)return "Could not reach the sign-in server. Check NEXT_PUBLIC_BACKEND_URL and the backend's CORS configuration.";
+   if(error instanceof Error)return error.message;
    return "Secure sign-in could not start. Please try again.";
  };
  const firebaseMessage=(error:unknown)=>{const code=(error as {code?:string}).code; const messages:Record<string,string>={"auth/invalid-api-key":"The Firebase web API key is invalid. Check NEXT_PUBLIC_FIREBASE_API_KEY.","auth/unauthorized-domain":"This website domain is not authorized in Firebase Authentication.","auth/popup-blocked":"Your browser blocked the sign-in popup. Allow popups and try again.","auth/popup-closed-by-user":"Sign-in was cancelled before it was completed.","auth/operation-not-allowed":"Google sign-in is not enabled in Firebase Authentication.","auth/network-request-failed":"Network connection failed while contacting Firebase."}; return messages[code||""] || "Google sign-in could not start. Please try again.";};
@@ -30,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
        if(fb)setFirebaseUser(fb);
        return;
      }
-     setFirebaseUser(fb);setUser(null);setOtpChallenge(null);setLoginError(null);
+     setFirebaseUser(fb);setUser(null);setLoginError(null);
      if(fb){
        try{await begin(fb);}
        catch(error){console.error("Secure sign-in could not start",error);setLoginError(message(error));}
@@ -69,14 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      setLoading(false);
    }
  }
- async function verifyOtp(code:string,trust:boolean){if(!firebaseUser||!otpChallenge)throw new Error("No verification pending");const {data}=await api.post("/user/verify-otp",{challengeId:otpChallenge.challengeId,code,trustDevice:trust},{headers:await authHeader(firebaseUser)});setUser(data.user);setOtpChallenge(null);setLoginError(null);}
- async function resendVerificationCode(){
-   if(!firebaseUser||!otpChallenge)throw new Error("No verification pending");
-   const {data}=await api.post("/user/resend-otp",{challengeId:otpChallenge.challengeId},{headers:await authHeader(firebaseUser)});
-   setOtpChallenge({challengeId:data.challengeId,resendAvailableIn:data.resendAvailableIn||0});
- }
- async function logout(){try{await api.post("/user/logout");}finally{await signOut(auth);setUser(null);setOtpChallenge(null);setLoginError(null);}}
+ async function logout(){try{await api.post("/user/logout");}finally{await signOut(auth);setUser(null);setLoginError(null);}}
  async function refreshUser(){if(!firebaseUser)return;try{await restoreSession(firebaseUser);}catch(error){setLoginError(message(error));throw error;}}
- return <AuthContext.Provider value={{user,firebaseUser,loading,otpChallenge,loginError,loginWithGoogle,verifyOtp,resendOtp:resendVerificationCode,logout,refreshUser}}>{children}</AuthContext.Provider>;
+ return <AuthContext.Provider value={{user,firebaseUser,loading,loginError,loginWithGoogle,logout,refreshUser}}>{children}</AuthContext.Provider>;
 }
 export function useAuth(){const ctx=useContext(AuthContext);if(!ctx)throw new Error("useAuth must be used within an AuthProvider");return ctx;}
