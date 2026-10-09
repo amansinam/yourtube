@@ -1,8 +1,9 @@
 import express from "express";
-import { getCurrentUser, getSecurity, getUserById, loginUser, logoutUser, revokeDevice, updateTheme, updateUser, verifyOtp } from "../controllers/userController.js";
+import { getCurrentUser, getSecurity, getUserById, loginUser, logoutUser, resendOtp, revokeDevice, updateTheme, updateUser, verifyOtp } from "../controllers/userController.js";
 import { requireFirebaseIdentity, requireSession } from "../middleware/auth.js";
 const router = express.Router();
 router.post("/login", requireFirebaseIdentity, loginUser);
+router.post("/resend-otp", requireFirebaseIdentity, resendOtp);
 router.post("/verify-otp", requireFirebaseIdentity, verifyOtp);
 router.get("/session", requireFirebaseIdentity, requireSession, getCurrentUser);
 router.post("/logout", requireSession, logoutUser);

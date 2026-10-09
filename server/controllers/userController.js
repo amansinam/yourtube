@@ -59,8 +59,56 @@ export async function loginUser(req, res) {
     await sendOtpEmail(user.email, code);
     const challenge = await OtpChallenge.create({ user: user._id, codeHash: hashSecret(code), expiresAt: new Date(Date.now() + expiry * MINUTE), resendAvailableAt: new Date(Date.now() + Number(process.env.OTP_RESEND_SECONDS || 60) * 1000), ...requestDetails(req) });
     await record(user, "otp_required", req); await record(user, "otp_sent", req);
-    return res.status(202).json({ success: true, otpRequired: true, challengeId: challenge._id, expiresIn: expiry * 60 });
+    return res.status(202).json({ success: true, otpRequired: true, challengeId: challenge._id, expiresIn: expiry * 60, resendAvailableIn: Math.ceil((challenge.resendAvailableAt - Date.now()) / 1000) });
   } catch (error) { console.error("secure login error:", error.message); if (error instanceof MailDeliveryError) return res.status(503).json({ success: false, message: error.message }); return res.status(500).json({ success: false, message: "Unable to start secure sign-in" }); }
+}
+export async function resendOtp(req, res) {
+  try {
+    const user = await userForFirebase(req);
+    const { challengeId } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(challengeId)) {
+      return res.status(400).json({ success: false, message: "A valid verification request is required" });
+    }
+    const challenge = await OtpChallenge.findOne({
+      _id: challengeId,
+      user: user._id,
+      usedAt: null,
+      expiresAt: { $gt: new Date() },
+    });
+    if (!challenge) {
+      return res.status(400).json({ success: false, message: "This verification request has expired. Sign in again to request a new code." });
+    }
+    const resendAvailableIn = Math.ceil((challenge.resendAvailableAt - Date.now()) / 1000);
+    if (resendAvailableIn > 0) {
+      return res.status(429).json({
+        success: false,
+        message: `Please wait ${resendAvailableIn} seconds before requesting another code`,
+        resendAvailableIn,
+      });
+    }
+    if (!mailConfigured()) {
+      return res.status(503).json({ success: false, message: mailConfigurationMessage() });
+    }
+
+    const code = randomOtp();
+    await sendOtpEmail(user.email, code);
+    challenge.codeHash = hashSecret(code);
+    challenge.attempts = 0;
+    challenge.resendAvailableAt = new Date(Date.now() + Number(process.env.OTP_RESEND_SECONDS || 60) * 1000);
+    await challenge.save();
+    await record(user, "otp_sent", req);
+    return res.json({
+      success: true,
+      otpRequired: true,
+      challengeId: challenge._id,
+      expiresIn: Math.max(0, Math.ceil((challenge.expiresAt - Date.now()) / 1000)),
+      resendAvailableIn: Math.ceil((challenge.resendAvailableAt - Date.now()) / 1000),
+    });
+  } catch (error) {
+    console.error("OTP resend error:", error.message);
+    if (error instanceof MailDeliveryError) return res.status(503).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: "Unable to resend verification code" });
+  }
 }
 export async function verifyOtp(req, res) {
   try {
